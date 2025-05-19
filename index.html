@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Simulador de Lanzamiento de Cohete</title>
+  <style>
+    body {
+      background: url('stars.jpg') #0D0D0D no-repeat center center fixed;
+      background-size: cover;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      font-family: Arial, sans-serif;
+      color: #ffffff;
+    }
+
+    canvas {
+      border: 3px solid #ccc;
+      background-color: #B3E5FC;
+      box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    #controls, #results {
+      margin: 1em 0;
+      padding: 15px;
+      border-radius: 10px;
+      width: 50%;
+      text-align: center;
+      box-shadow: 0px 5px 15px rgba(255, 255, 255, 0.2);
+    }
+
+    #controls {
+      background-color: #FFA726;
+      border: 2px solid #FF6F00;
+    }
+
+    #results {
+      background-color: #222;
+      border: 2px solid #00FF00;
+      display: none;
+    }
+
+    button {
+      background-color: #FF3B30;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 5px;
+      box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    button:hover {
+      background-color: #C70000;
+    }
+  </style>
+</head>
+<body>
+  <h2>Simulador de Lanzamiento de Cohete 🚀</h2>
+
+  <div id="controls">
+    <label for="angle">Ángulo de lanzamiento: </label>
+    <select id="angle">
+      <option value="22">22°</option>
+      <option value="27">27°</option>
+      <option value="32">32°</option>
+      <option value="37">37°</option>
+      <option value="42">42°</option>
+      <option value="43">43°</option>
+      <option value="44">44°</option>
+      <option value="45" selected>45°</option>
+      <option value="46">46°</option>
+      <option value="49">49°</option>
+    </select>
+
+    <label for="velocity">Velocidad inicial: </label>
+    <select id="velocity">
+      <option value="30">30 m/s</option>
+      <option value="25" selected>25 m/s</option>
+    </select>
+
+    <button onclick="lanzarCohete()">🚀 ¡Lanzar Cohete!</button>
+  </div>
+
+  <canvas id="canvas" width="800" height="400"></canvas>
+
+  <div id="results">
+    <h3>Resultados del lanzamiento</h3>
+    <p><strong>Altura máxima:</strong> <span id="maxHeight">0</span> m</p>
+    <p><strong>Tiempo total:</strong> <span id="totalTime">0</span> s</p>
+    <p><strong>Distancia total:</strong> <span id="totalDistance">0</span> m</p>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const g = 9.81;
+    let scale = 5;
+    let rocketImg = new Image();
+    rocketImg.src = '290879.png'; // Usa tu imagen de cohete
+    let particulas = [];
+
+    function calcularTrayectoria(angulo, v0) {
+      const rad = angulo * Math.PI / 180;
+      const v0x = v0 * Math.cos(rad);
+      const v0y = v0 * Math.sin(rad);
+      const tTotal = (2 * v0y) / g;
+      const distanciaTotal = v0x * tTotal;
+
+      scale = (canvas.width - 50) / distanciaTotal;
+
+      const puntos = [];
+      for (let t = 0; t <= tTotal; t += 0.05) {
+        const x = v0x * t;
+        const y = v0y * t - 0.5 * g * t * t;
+        puntos.push({ x: x, y: y });
+      }
+      return puntos;
+    }
+
+    function dibujarTrayectoria(puntos) {
+      ctx.beginPath();
+      ctx.moveTo(puntos[0].x * scale, canvas.height - puntos[0].y * scale);
+      for (let p of puntos) {
+        ctx.lineTo(p.x * scale, canvas.height - p.y * scale);
+      }
+      ctx.strokeStyle = 'red';
+      ctx.stroke();
+    }
+
+    function generarHumo(x, y) {
+      for (let i = 0; i < 3; i++) {
+        particulas.push({
+          x: x,
+          y: y,
+          radius: Math.random() * 4 + 2,
+          alpha: 1,
+          dx: (Math.random() - 0.5) * 2,
+          dy: Math.random() * 1 + 0.5
+        });
+      }
+    }
+
+    function dibujarHumo() {
+      for (let i = particulas.length - 1; i >= 0; i--) {
+        const p = particulas[i];
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(200, 200, 200, ${p.alpha})`;
+        ctx.fill();
+
+        p.x += p.dx;
+        p.y += p.dy;
+        p.alpha -= 0.02;
+
+        if (p.alpha <= 0) {
+          particulas.splice(i, 1);
+        }
+      }
+    }
+
+    function lanzarCohete() {
+      const angulo = parseFloat(document.getElementById('angle').value);
+      const v0 = parseFloat(document.getElementById('velocity').value);
+      const puntos = calcularTrayectoria(angulo, v0);
+      let i = 0;
+      let maxHeight = 0;
+      particulas = [];
+
+      function animar() {
+        if (i < puntos.length) {
+          const p = puntos[i];
+          let xPos = p.x * scale;
+          let yPos = canvas.height - p.y * scale;
+
+          if (p.y > maxHeight) maxHeight = p.y;
+          if (xPos > canvas.width - 30) xPos = canvas.width - 30;
+          if (yPos < 0) yPos = 10;
+
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          dibujarTrayectoria(puntos.slice(0, i + 1));
+          generarHumo(xPos, yPos + 15);
+          dibujarHumo();
+          ctx.drawImage(rocketImg, xPos - 15, yPos - 30, 30, 30);
+
+          i++;
+          requestAnimationFrame(animar);
+        } else {
+          mostrarResultados(maxHeight, puntos.length * 0.05, puntos[puntos.length - 1].x);
+        }
+      }
+
+      animar();
+    }
+
+    function mostrarResultados(alturaMax, tiempoTotal, distanciaTotal) {
+      document.getElementById("maxHeight").innerText = alturaMax.toFixed(2);
+      document.getElementById("totalTime").innerText = tiempoTotal.toFixed(2);
+      document.getElementById("totalDistance").innerText = distanciaTotal.toFixed(2);
+
+      document.getElementById("results").style.display = "block";
+    }
+  </script>
+</body>
+</html>
+
+
+
